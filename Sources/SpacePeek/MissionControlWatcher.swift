@@ -4,6 +4,7 @@ final class MissionControlWatcher {
     private let onShow: ([Thumbnail]) -> Void
     private let onHide: () -> Void
     private let onUpdate: ([Thumbnail]) -> Void
+    private let shouldPauseRefresh: () -> Bool
 
     private var pollTimer: Timer?
     private var refreshTimer: Timer?
@@ -12,11 +13,13 @@ final class MissionControlWatcher {
     init(
         onShow: @escaping ([Thumbnail]) -> Void,
         onHide: @escaping () -> Void,
-        onUpdate: @escaping ([Thumbnail]) -> Void
+        onUpdate: @escaping ([Thumbnail]) -> Void,
+        shouldPauseRefresh: @escaping () -> Bool = { false }
     ) {
         self.onShow = onShow
         self.onHide = onHide
         self.onUpdate = onUpdate
+        self.shouldPauseRefresh = shouldPauseRefresh
     }
 
     func start() {
@@ -38,14 +41,16 @@ final class MissionControlWatcher {
         if thumbnails.isEmpty {
             if isVisible {
                 isVisible = false
+                stopRefreshLoop()
                 onHide()
             }
         } else {
-            if isVisible {
-                onUpdate(thumbnails)
-            } else {
+            if !isVisible {
                 isVisible = true
                 onShow(thumbnails)
+                startRefreshLoop()
+            } else {
+                onUpdate(thumbnails)
             }
         }
     }
@@ -66,8 +71,9 @@ final class MissionControlWatcher {
 
     private func startRefreshLoop() {
         refreshTimer?.invalidate()
-        let timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
             guard let self, self.isVisible else { return }
+            if self.shouldPauseRefresh() { return }
             let thumbnails = ThumbnailScanner.scan()
             if thumbnails.isEmpty {
                 self.isVisible = false

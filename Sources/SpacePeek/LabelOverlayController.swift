@@ -10,9 +10,18 @@ final class LabelOverlayController {
 
     private var entries: [String: Entry] = [:]
     private var orderedIDs: [String] = []
-    private var stripBand: NSRect = .zero
+    private(set) var stripBand: NSRect = .zero
     private var labelsHidden = false
+    private var lastInStrip = false
+    private var pendingShowWork: DispatchWorkItem?
     private var mouseTimer: Timer?
+    var onStripLeave: (() -> Void)?
+
+    func isMouseInStripBand() -> Bool {
+        guard stripBand != .zero else { return false }
+        let mouse = NSEvent.mouseLocation
+        return stripBand.contains(mouse) || mouse.y >= stripBand.minY
+    }
 
     init() {
         startMouseTracking()
@@ -31,6 +40,8 @@ final class LabelOverlayController {
     }
 
     func hide() {
+        pendingShowWork?.cancel()
+        pendingShowWork = nil
         for entry in entries.values {
             entry.window.orderOut(nil)
         }
@@ -38,6 +49,7 @@ final class LabelOverlayController {
         orderedIDs.removeAll()
         stripBand = .zero
         labelsHidden = false
+        lastInStrip = false
     }
 
     private func sync(to thumbnails: [Thumbnail]) {
@@ -87,7 +99,7 @@ final class LabelOverlayController {
     }
 
     private func startMouseTracking() {
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.applyHoverState()
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -98,16 +110,31 @@ final class LabelOverlayController {
         guard !entries.isEmpty, stripBand != .zero else { return }
         let mouse = NSEvent.mouseLocation
         let inStrip = stripBand.contains(mouse) || mouse.y >= stripBand.minY
-        guard inStrip != labelsHidden else { return }
-        labelsHidden = inStrip
+        guard inStrip != lastInStrip else { return }
+        lastInStrip = inStrip
+
+        pendingShowWork?.cancel()
+        pendingShowWork = nil
+
         if inStrip {
-            for entry in entries.values {
-                entry.window.orderOut(nil)
+            if !labelsHidden {
+                labelsHidden = true
+                for entry in entries.values {
+                    entry.window.orderOut(nil)
+                }
             }
         } else {
-            for entry in entries.values {
-                entry.window.orderFrontRegardless()
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.onStripLeave?()
+                self.labelsHidden = false
+                for entry in self.entries.values {
+                    entry.window.orderFrontRegardless()
+                }
+                self.pendingShowWork = nil
             }
+            pendingShowWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
         }
     }
 

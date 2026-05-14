@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "WindowLabels",
+    name: "SpacePeek",
     platforms: [
         .macOS(.v14)
     ],
     targets: [
         .executableTarget(
-            name: "WindowLabels",
-            path: "Sources/WindowLabels"
+            name: "SpacePeek",
+            path: "Sources/SpacePeek"
         )
     ]
 )

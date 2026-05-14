@@ -19,14 +19,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "WL"
-        item.button?.toolTip = "Window Labels"
+        if let icon = NSImage(systemSymbolName: "captions.bubble", accessibilityDescription: "SpacePeek") {
+            icon.isTemplate = true
+            item.button?.image = icon
+        } else {
+            item.button?.title = "SP"
+        }
+        item.button?.toolTip = "SpacePeek"
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Recheck Permissions", action: #selector(recheckPermissions), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: "Force Scan Now", action: #selector(forceScan), keyEquivalent: "s"))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit SpacePeek", action: #selector(quit), keyEquivalent: "q"))
         for entry in menu.items { entry.target = self }
         item.menu = menu
         statusItem = item
@@ -45,8 +50,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onUpdate: { [weak controller] thumbnails in
                 controller?.update(thumbnails: thumbnails)
+            },
+            shouldPauseRefresh: { [weak controller] in
+                controller?.isMouseInStripBand() ?? false
             }
         )
+        controller.onStripLeave = { [weak watcher] in
+            watcher?.scanOnce()
+        }
         watcher.start()
         self.watcher = watcher
     }
@@ -54,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentAccessibilityAlert() {
         let alert = NSAlert()
         alert.messageText = "Accessibility permission required"
-        alert.informativeText = "Grant Window Labels access under System Settings > Privacy & Security > Accessibility, then choose Recheck Permissions from the menu bar item."
+        alert.informativeText = "Grant SpacePeek access under System Settings > Privacy & Security > Accessibility, then choose Recheck Permissions from the menu bar item."
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "Later")
         if alert.runModal() == .alertFirstButtonReturn {
