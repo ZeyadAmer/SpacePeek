@@ -55,6 +55,24 @@ Run directly without packaging:
 swift run SpacePeek
 ```
 
+### Cut a release
+
+```bash
+# 1. build the DMG
+bash scripts/build-app.sh
+
+# 2. tag the commit
+git tag v0.1.0
+git push origin v0.1.0
+
+# 3. publish on GitHub Releases with the DMG attached
+gh release create v0.1.0 dist/SpacePeek-0.1.0.dmg \
+  --title "SpacePeek 0.1.0" \
+  --notes "Initial release. Drag the DMG to Applications, right-click → Open on first launch, grant Accessibility access."
+```
+
+Bump version in `scripts/build-app.sh` and the DMG filename for subsequent releases.
+
 ## How it works
 
 SpacePeek reads the Dock process's Accessibility tree to find the `Spaces Bar` element Apple exposes when Mission Control is open. For each tile it reads the title (e.g. `Claude`, `Desktop 1`) and the tile's screen frame, then renders a borderless overlay window above the shielding window level with a single-line label positioned directly under the tile.
