@@ -17,13 +17,28 @@ Mission Control's Spaces strip only shows a space's name when you hover it. With
 
 ## Install
 
-No terminal, no Xcode, no Swift required. Download → drag → run.
+Download → drag → strip quarantine → run.
 
 1. Download the latest `SpacePeek-x.y.z.dmg` from [Releases](../../releases).
 2. Open the DMG and drag **SpacePeek** into **Applications**.
-3. First launch only: **right-click** SpacePeek in Applications → **Open** → **Open** (bypasses Gatekeeper since the app is unsigned).
-4. Grant **Accessibility** access when prompted (System Settings → Privacy & Security → Accessibility → toggle SpacePeek on).
+3. **Bypass Gatekeeper** — the app is ad-hoc signed, not Developer-ID signed, so macOS Sequoia blocks first launch with *"Apple could not verify SpacePeek is free of malware"*. Choose one:
+
+   **Option A — Terminal one-liner (fastest):**
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/SpacePeek.app
+   ```
+   Then double-click SpacePeek to launch normally.
+
+   **Option B — System Settings (no terminal):**
+   1. Double-click SpacePeek → hit **Done** on the block dialog.
+   2. Open **System Settings → Privacy & Security**.
+   3. Scroll down. You will see *"SpacePeek was blocked to protect your Mac."* → click **Open Anyway**.
+   4. Confirm the next dialog with **Open**.
+
+4. Grant **Accessibility** access when prompted (System Settings → Privacy & Security → Accessibility → toggle **SpacePeek** on).
 5. Done. SpacePeek runs silently in the menu bar — no Dock icon, no window. Trigger Mission Control (three-finger swipe up, F3, or Ctrl + ↑) and labels appear under every tile.
+
+> **Why the Gatekeeper warning?** SpacePeek is currently ad-hoc signed because there is no paid Apple Developer ID behind the project yet. Once that is in place (see Roadmap), releases will be Developer-ID signed and notarized, and recipients will just double-click to launch.
 
 ### Run at login (optional)
 
@@ -68,7 +83,7 @@ git push origin v0.1.0
 # 3. publish on GitHub Releases with the DMG attached
 gh release create v0.1.0 dist/SpacePeek-0.1.0.dmg \
   --title "SpacePeek 0.1.0" \
-  --notes "Initial release. Drag the DMG to Applications, right-click → Open on first launch, grant Accessibility access."
+  --notes $'Initial release. Drag the DMG to Applications, then strip quarantine to bypass Gatekeeper:\n\n    xattr -dr com.apple.quarantine /Applications/SpacePeek.app\n\nOr System Settings → Privacy & Security → Open Anyway. Then grant Accessibility access.'
 ```
 
 Bump version in `scripts/build-app.sh` and the DMG filename for subsequent releases.
