@@ -17,18 +17,30 @@ Mission Control's Spaces strip only shows a space's name when you hover it. With
 
 ## Install
 
+No terminal, no Xcode, no Swift required. Download → drag → run.
+
 1. Download the latest `SpacePeek-x.y.z.dmg` from [Releases](../../releases).
-2. Open the DMG, drag **SpacePeek** to **Applications**.
-3. First launch: **right-click** SpacePeek in Applications → **Open** → **Open** (bypass Gatekeeper, the app is unsigned).
-4. Grant **Accessibility** access when prompted (System Settings → Privacy & Security → Accessibility).
-5. Trigger Mission Control (three-finger swipe up, F3, or Ctrl + ↑). Labels appear under each space.
+2. Open the DMG and drag **SpacePeek** into **Applications**.
+3. First launch only: **right-click** SpacePeek in Applications → **Open** → **Open** (bypasses Gatekeeper since the app is unsigned).
+4. Grant **Accessibility** access when prompted (System Settings → Privacy & Security → Accessibility → toggle SpacePeek on).
+5. Done. SpacePeek runs silently in the menu bar — no Dock icon, no window. Trigger Mission Control (three-finger swipe up, F3, or Ctrl + ↑) and labels appear under every tile.
+
+### Run at login (optional)
+
+To have SpacePeek start automatically in the background on every boot:
+
+System Settings → General → Login Items → **Open at Login** → **+** → pick **SpacePeek** from Applications.
+
+That's it. No terminal involvement at any point.
 
 ## Requirements
 
 - macOS 14 Sonoma or later
 - Apple Silicon (Intel build pending)
 
-## Build from source
+## Build from source (contributors only)
+
+End users do not need this section — grab the DMG from Releases instead.
 
 ```bash
 git clone git@github.com:ZeyadAmer/SpacePeek.git
