@@ -50,7 +50,7 @@ struct LabelStyle: Codable, Equatable {
 }
 
 struct Preferences: Codable, Equatable {
-    var defaultStrategy: TitleStrategy = .raw
+    var defaultStrategy: TitleStrategy = .folder
     var spaceOverrides: [String: SpaceOverride] = [:]
     var appRules: [AppRule] = []
     var labelStyle: LabelStyle = LabelStyle()

@@ -25,6 +25,7 @@ enum ThumbnailScanner {
             guard let thumb = spaceTile(from: child, index: index) else { continue }
             collected.append(thumb)
         }
+        collected = dedupeByRawTitle(collected)
 
         if ProcessInfo.processInfo.environment["WL_DEBUG"] != nil {
             let titles = collected.map { $0.title }.joined(separator: " | ")
@@ -79,6 +80,25 @@ enum ThumbnailScanner {
 
         let id = "space.\(index).\(Int(frame.origin.x))_\(Int(frame.origin.y))_\(rawTitle)"
         return Thumbnail(id: id, frame: frame, rawTitle: rawTitle, title: displayTitle)
+    }
+
+    private static func dedupeByRawTitle(_ thumbs: [Thumbnail]) -> [Thumbnail] {
+        var bestByTitle: [String: Thumbnail] = [:]
+        var order: [String] = []
+        for thumb in thumbs {
+            let key = thumb.rawTitle
+            if let existing = bestByTitle[key] {
+                let existingArea = existing.frame.width * existing.frame.height
+                let newArea = thumb.frame.width * thumb.frame.height
+                if newArea > existingArea {
+                    bestByTitle[key] = thumb
+                }
+            } else {
+                bestByTitle[key] = thumb
+                order.append(key)
+            }
+        }
+        return order.compactMap { bestByTitle[$0] }
     }
 
     private static func pickTitle(rawTitle: String, rawDesc: String) -> String {
