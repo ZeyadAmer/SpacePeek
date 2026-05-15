@@ -2,11 +2,11 @@ import AppKit
 
 final class LabelView: NSView {
     private let textField: NSTextField
-    static let maxWidth: CGFloat = 86
+    static let maxWidth: CGFloat = 80
 
-    init(title: String) {
+    init(title: String, style: LabelStyle = PreferencesStore.shared.preferences.labelStyle) {
         let field = NSTextField(labelWithString: title)
-        field.font = .systemFont(ofSize: 11, weight: .semibold)
+        field.font = style.makeFont()
         field.textColor = .white
         field.alignment = .center
         field.lineBreakMode = .byTruncatingTail

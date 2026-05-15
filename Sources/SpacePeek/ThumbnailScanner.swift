@@ -65,17 +65,20 @@ enum ThumbnailScanner {
             return nil
         }
 
-        let rawTitle = (copyAttribute(element, kAXTitleAttribute) as? String) ?? ""
+        let rawTitleAttr = (copyAttribute(element, kAXTitleAttribute) as? String) ?? ""
         let rawDesc = (copyAttribute(element, kAXDescriptionAttribute) as? String) ?? ""
 
-        let title = pickTitle(rawTitle: rawTitle, rawDesc: rawDesc)
-        guard !title.isEmpty else { return nil }
+        let rawTitle = pickTitle(rawTitle: rawTitleAttr, rawDesc: rawDesc)
+        guard !rawTitle.isEmpty else { return nil }
 
         guard let frame = frame(of: element) else { return nil }
         guard frame.width >= 20, frame.height >= 20 else { return nil }
 
-        let id = "space.\(index).\(Int(frame.origin.x))_\(Int(frame.origin.y))_\(title)"
-        return Thumbnail(id: id, frame: frame, title: title)
+        let preferences = PreferencesStore.shared.preferences
+        let displayTitle = TitleProcessor.displayTitle(forRawTitle: rawTitle, preferences: preferences)
+
+        let id = "space.\(index).\(Int(frame.origin.x))_\(Int(frame.origin.y))_\(rawTitle)"
+        return Thumbnail(id: id, frame: frame, rawTitle: rawTitle, title: displayTitle)
     }
 
     private static func pickTitle(rawTitle: String, rawDesc: String) -> String {

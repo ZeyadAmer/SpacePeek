@@ -67,9 +67,7 @@ final class LabelOverlayController {
             let labelFrame = labelRect(for: tileScreenFrame, title: thumbnail.title, existing: entries[thumbnail.id])
 
             if let existing = entries[thumbnail.id] {
-                if existing.title != thumbnail.title {
-                    existing.window.contentView = LabelView(title: thumbnail.title)
-                }
+                existing.window.contentView = LabelView(title: thumbnail.title)
                 if existing.labelFrame != labelFrame {
                     existing.window.setFrame(labelFrame, display: false)
                 }

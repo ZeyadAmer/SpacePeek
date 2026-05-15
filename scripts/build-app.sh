@@ -3,12 +3,13 @@ set -euo pipefail
 
 APP_NAME="SpacePeek"
 BUNDLE_ID="com.zeyadamer.spacepeek"
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/dist"
 APP_DIR="${BUILD_DIR}/${APP_NAME}.app"
 DMG_PATH="${BUILD_DIR}/${APP_NAME}-${VERSION}.dmg"
+ZIP_PATH="${BUILD_DIR}/${APP_NAME}-${VERSION}.zip"
 DMG_STAGE="${BUILD_DIR}/dmg-stage"
 
 echo "==> Cleaning ${BUILD_DIR}"
@@ -64,9 +65,14 @@ hdiutil create \
 
 rm -rf "${DMG_STAGE}"
 
+echo "==> Creating ZIP"
+( cd "${BUILD_DIR}" && /usr/bin/ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "${ZIP_PATH}" )
+
 echo ""
 echo "Done."
 echo "  App: ${APP_DIR}"
 echo "  DMG: ${DMG_PATH}"
+echo "  ZIP: ${ZIP_PATH}"
 echo ""
-echo "Recipients open DMG, drag SpacePeek to Applications, right-click SpacePeek > Open (first launch)."
+echo "Recipients open DMG (or unzip), drag SpacePeek to Applications, then bypass Gatekeeper:"
+echo "  xattr -dr com.apple.quarantine /Applications/SpacePeek.app"

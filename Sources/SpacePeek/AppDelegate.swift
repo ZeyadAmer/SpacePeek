@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var overlayController: LabelOverlayController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = FontImporter.shared
         installStatusItem()
         ensureAccessibility { [weak self] granted in
             guard let self else { return }
@@ -15,6 +16,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.startWatching()
         }
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePreferencesChange),
+            name: PreferencesStore.didChangeNotification,
+            object: nil
+        )
     }
 
     private func installStatusItem() {
@@ -28,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.toolTip = "SpacePeek"
 
         let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Recheck Permissions", action: #selector(recheckPermissions), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: "Force Scan Now", action: #selector(forceScan), keyEquivalent: "s"))
         menu.addItem(.separator())
@@ -43,12 +53,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let watcher = MissionControlWatcher(
             onShow: { [weak controller] thumbnails in
+                SpacesSnapshotStore.shared.update(from: thumbnails)
                 controller?.show(thumbnails: thumbnails)
             },
             onHide: { [weak controller] in
                 controller?.hide()
             },
             onUpdate: { [weak controller] thumbnails in
+                SpacesSnapshotStore.shared.update(from: thumbnails)
                 controller?.update(thumbnails: thumbnails)
             },
             shouldPauseRefresh: { [weak controller] in
@@ -75,6 +87,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func openSettings() {
+        PreferencesWindowController.shared.show()
+    }
+
     @objc private func recheckPermissions() {
         ensureAccessibility { [weak self] granted in
             guard let self else { return }
@@ -92,5 +108,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func handlePreferencesChange() {
+        watcher?.scanOnce()
     }
 }
