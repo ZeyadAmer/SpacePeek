@@ -91,6 +91,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PreferencesWindowController.shared.show()
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            PreferencesWindowController.shared.show()
+        }
+        return true
+    }
+
     @objc private func recheckPermissions() {
         ensureAccessibility { [weak self] granted in
             guard let self else { return }
