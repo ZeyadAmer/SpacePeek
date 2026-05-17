@@ -9,6 +9,9 @@ final class MissionControlWatcher {
     private var pollTimer: Timer?
     private var refreshTimer: Timer?
     private var isVisible = false
+    private let overlayCountMax = 11
+    private let fastPollInterval: TimeInterval = 0.125
+    private let normalShowDelay: TimeInterval = 0.375
 
     init(
         onShow: @escaping ([Thumbnail]) -> Void,
@@ -23,7 +26,7 @@ final class MissionControlWatcher {
     }
 
     func start() {
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        pollTimer = Timer.scheduledTimer(withTimeInterval: fastPollInterval, repeats: true) { [weak self] _ in
             self?.tick()
         }
         RunLoop.main.add(pollTimer!, forMode: .common)
@@ -60,8 +63,17 @@ final class MissionControlWatcher {
         let nowVisible = !thumbnails.isEmpty
         if nowVisible && !isVisible {
             isVisible = true
-            onShow(thumbnails)
-            startRefreshLoop()
+            let isOverlayMode = thumbnails.count < overlayCountMax
+            if isOverlayMode {
+                onShow(thumbnails)
+                startRefreshLoop()
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + normalShowDelay) { [weak self] in
+                    guard let self, self.isVisible else { return }
+                    self.onShow(thumbnails)
+                    self.startRefreshLoop()
+                }
+            }
         } else if !nowVisible && isVisible {
             isVisible = false
             stopRefreshLoop()

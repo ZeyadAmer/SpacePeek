@@ -73,8 +73,9 @@ final class LabelOverlayController {
 
         let screenHeight = NSScreen.main?.frame.height ?? 900
         let maxTileHeight = thumbnails.map { $0.frame.height }.max() ?? 0
-        isCompactLayout = maxTileHeight > 0 && maxTileHeight < screenHeight * compactTileHeightRatio
-        useCoverBand = !isCompactLayout && thumbnails.count < coverBandMaxSpaces
+        let withinNewLogic = thumbnails.count < coverBandMaxSpaces
+        isCompactLayout = withinNewLogic && maxTileHeight > 0 && maxTileHeight < screenHeight * compactTileHeightRatio
+        useCoverBand = withinNewLogic && !isCompactLayout
 
         var union: NSRect = .null
         for thumbnail in thumbnails {
