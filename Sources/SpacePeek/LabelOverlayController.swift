@@ -15,6 +15,13 @@ final class LabelOverlayController {
     private var lastInStrip = false
     private var pendingShowWork: DispatchWorkItem?
     private var mouseTimer: Timer?
+    private var stripCoverWindow: NSWindow?
+    private let stripCoverHeight: CGFloat = 36
+    private let stripCoverPaddingX: CGFloat = 24
+    private let compactTileHeightRatio: CGFloat = 0.06
+    private let coverBandMaxSpaces = 11
+    private var isCompactLayout = false
+    private var useCoverBand = false
     var onStripLeave: (() -> Void)?
 
     func isMouseInStripBand() -> Bool {
@@ -47,9 +54,13 @@ final class LabelOverlayController {
         }
         entries.removeAll()
         orderedIDs.removeAll()
+        stripCoverWindow?.orderOut(nil)
+        stripCoverWindow = nil
         stripBand = .zero
         labelsHidden = false
         lastInStrip = false
+        isCompactLayout = false
+        useCoverBand = false
     }
 
     private func sync(to thumbnails: [Thumbnail]) {
@@ -59,6 +70,11 @@ final class LabelOverlayController {
             entries.removeValue(forKey: id)
         }
         orderedIDs = thumbnails.map { $0.id }
+
+        let screenHeight = NSScreen.main?.frame.height ?? 900
+        let maxTileHeight = thumbnails.map { $0.frame.height }.max() ?? 0
+        isCompactLayout = maxTileHeight > 0 && maxTileHeight < screenHeight * compactTileHeightRatio
+        useCoverBand = !isCompactLayout && thumbnails.count < coverBandMaxSpaces
 
         var union: NSRect = .null
         for thumbnail in thumbnails {
@@ -71,6 +87,9 @@ final class LabelOverlayController {
                 if existing.labelFrame != labelFrame {
                     existing.window.setFrame(labelFrame, display: false)
                 }
+                if isCompactLayout {
+                    existing.window.orderOut(nil)
+                }
                 entries[thumbnail.id] = Entry(
                     window: existing.window,
                     labelFrame: labelFrame,
@@ -81,7 +100,7 @@ final class LabelOverlayController {
                 let window = makeWindow()
                 window.contentView = LabelView(title: thumbnail.title)
                 window.setFrame(labelFrame, display: false)
-                if !labelsHidden {
+                if !labelsHidden && !isCompactLayout {
                     window.orderFrontRegardless()
                 }
                 entries[thumbnail.id] = Entry(
@@ -94,6 +113,28 @@ final class LabelOverlayController {
         }
 
         stripBand = union.isNull ? .zero : union.insetBy(dx: -16, dy: -16)
+
+        if union.isNull || !useCoverBand {
+            stripCoverWindow?.orderOut(nil)
+            stripCoverWindow = nil
+        } else {
+            let screenFrame = NSScreen.main?.frame ?? union
+            let coverFrame = NSRect(
+                x: screenFrame.minX,
+                y: union.minY - stripCoverHeight,
+                width: screenFrame.width,
+                height: stripCoverHeight
+            )
+            let cover = stripCoverWindow ?? makeStripCoverWindow()
+            cover.setFrame(coverFrame, display: false)
+            stripCoverWindow = cover
+            if !labelsHidden {
+                cover.orderFrontRegardless()
+                for entry in entries.values {
+                    entry.window.orderFrontRegardless()
+                }
+            }
+        }
     }
 
     private func startMouseTracking() {
@@ -106,6 +147,7 @@ final class LabelOverlayController {
 
     private func applyHoverState() {
         guard !entries.isEmpty, stripBand != .zero else { return }
+        if useCoverBand { return }
         let mouse = NSEvent.mouseLocation
         let inStrip = stripBand.contains(mouse) || mouse.y >= stripBand.minY
         guard inStrip != lastInStrip else { return }
@@ -117,6 +159,7 @@ final class LabelOverlayController {
         if inStrip {
             if !labelsHidden {
                 labelsHidden = true
+                stripCoverWindow?.orderOut(nil)
                 for entry in entries.values {
                     entry.window.orderOut(nil)
                 }
@@ -126,8 +169,13 @@ final class LabelOverlayController {
                 guard let self else { return }
                 self.onStripLeave?()
                 self.labelsHidden = false
-                for entry in self.entries.values {
-                    entry.window.orderFrontRegardless()
+                if !self.isCompactLayout {
+                    if self.useCoverBand {
+                        self.stripCoverWindow?.orderFrontRegardless()
+                    }
+                    for entry in self.entries.values {
+                        entry.window.orderFrontRegardless()
+                    }
                 }
                 self.pendingShowWork = nil
             }
@@ -142,7 +190,7 @@ final class LabelOverlayController {
         let labelWidth: CGFloat = min(LabelView.maxWidth, max(intrinsic.width, 40))
         let labelHeight: CGFloat = max(intrinsic.height, 16)
         let originX = tile.midX - labelWidth / 2
-        let originY = tile.minY - labelHeight - 2
+        let originY = tile.minY - labelHeight - 8
         return NSRect(x: originX, y: originY, width: labelWidth, height: labelHeight)
     }
 
@@ -162,6 +210,46 @@ final class LabelOverlayController {
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .transient]
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
+        return window
+    }
+
+    private func makeStripCoverWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: .zero,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.ignoresMouseEvents = true
+        let shielded = Int(CGShieldingWindowLevel())
+        window.level = NSWindow.Level(rawValue: shielded + 9)
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .transient]
+        window.isReleasedWhenClosed = false
+        window.hidesOnDeactivate = false
+
+        let host = NSView()
+        host.wantsLayer = true
+        host.autoresizingMask = [.width, .height]
+        if let layer = host.layer {
+            layer.masksToBounds = false
+            let gradient = CAGradientLayer()
+            gradient.colors = [
+                NSColor(calibratedWhite: 0.06, alpha: 0.0).cgColor,
+                NSColor(calibratedWhite: 0.06, alpha: 1.0).cgColor,
+                NSColor(calibratedWhite: 0.06, alpha: 1.0).cgColor,
+                NSColor(calibratedWhite: 0.06, alpha: 0.0).cgColor
+            ]
+            gradient.locations = [0.0, 0.15, 0.85, 1.0]
+            gradient.startPoint = CGPoint(x: 0.5, y: 1.0)
+            gradient.endPoint = CGPoint(x: 0.5, y: 0.0)
+            gradient.frame = host.bounds
+            gradient.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+            layer.addSublayer(gradient)
+        }
+        window.contentView = host
         return window
     }
 

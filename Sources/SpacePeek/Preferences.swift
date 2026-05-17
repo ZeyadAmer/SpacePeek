@@ -32,7 +32,7 @@ struct SpaceOverride: Codable, Equatable {
 
 struct LabelStyle: Codable, Equatable {
     var fontName: String = "SF Pro Text"
-    var fontSize: CGFloat = 11
+    var fontSize: CGFloat = 21
     var bold: Bool = true
 
     func makeFont() -> NSFont {

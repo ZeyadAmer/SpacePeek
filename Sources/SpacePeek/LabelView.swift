@@ -2,7 +2,7 @@ import AppKit
 
 final class LabelView: NSView {
     private let textField: NSTextField
-    static let maxWidth: CGFloat = 80
+    static let maxWidth: CGFloat = 140
 
     init(title: String, style: LabelStyle = PreferencesStore.shared.preferences.labelStyle) {
         let field = NSTextField(labelWithString: title)

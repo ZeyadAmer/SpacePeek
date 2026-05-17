@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="SpacePeek"
 BUNDLE_ID="com.zeyadamer.spacepeek"
-VERSION="0.2.0"
+VERSION="0.3.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/dist"
