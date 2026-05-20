@@ -22,66 +22,57 @@ Mission Control's Spaces strip only shows a space's name when you hover it. With
 
 ## Install
 
-Download → drag → strip quarantine → run.
+Signed with Apple Developer ID and notarized by Apple — Gatekeeper accepts it on first launch.
 
 1. Download the latest `SpacePeek-x.y.z.dmg` from [Releases](../../releases).
 2. Open the DMG and drag **SpacePeek** into **Applications**.
-3. **Bypass Gatekeeper** — the app is ad-hoc signed, not Developer-ID signed, so macOS Sequoia blocks first launch with *"Apple could not verify SpacePeek is free of malware"*. Choose one:
-
-   **Option A — Terminal one-liner (fastest):**
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/SpacePeek.app
-   ```
-   Then double-click SpacePeek to launch normally.
-
-   **Option B — System Settings (no terminal):**
-   1. Double-click SpacePeek → hit **Done** on the block dialog.
-   2. Open **System Settings → Privacy & Security**.
-   3. Scroll down. You will see *"SpacePeek was blocked to protect your Mac."* → click **Open Anyway**.
-   4. Confirm the next dialog with **Open**.
-
-4. Grant **Accessibility** access when prompted (System Settings → Privacy & Security → Accessibility → toggle **SpacePeek** on).
+3. Double-click **SpacePeek** in `/Applications` to launch.
+4. Grant **Accessibility** access when prompted (System Settings → Privacy & Security → Accessibility → toggle **SpacePeek** on). SpacePeek auto-starts watching the moment the toggle flips.
 5. Done. SpacePeek runs silently in the menu bar — no Dock icon, no window. Trigger Mission Control (three-finger swipe up, F3, or Ctrl + ↑) and labels appear under every tile.
-
-> **Why the Gatekeeper warning?** SpacePeek is currently ad-hoc signed because there is no paid Apple Developer ID behind the project yet. Once that is in place (see Roadmap), releases will be Developer-ID signed and notarized, and recipients will just double-click to launch.
 
 ### Run at login (optional)
 
-To have SpacePeek start automatically in the background on every boot:
-
 System Settings → General → Login Items → **Open at Login** → **+** → pick **SpacePeek** from Applications.
-
-That's it. No terminal involvement at any point.
 
 ### Updating to a new version
 
-SpacePeek is unsigned, so every new build has a different code hash. macOS treats the new build as a different app for Accessibility purposes, which means the old toggle in *Privacy & Security → Accessibility* no longer authorises anything. Replace the app and reset the permission before launching:
+Drag the new `SpacePeek.app` from the latest DMG into `/Applications`, overwriting the old one. Because the Developer ID identity is stable across releases, your existing Accessibility grant carries over — no re-prompting, no `tccutil reset` required.
+
+## Uninstall
+
+Remove SpacePeek and every trace it leaves behind — permissions, preferences, custom fonts, caches:
 
 ```bash
-# 1. Quit the running app
-pkill -f SpacePeek
+# Quit the app
+osascript -e 'tell application "SpacePeek" to quit' 2>/dev/null
+pkill -f SpacePeek 2>/dev/null
 
-# 2. Remove the old install
+# Remove the app
 rm -rf /Applications/SpacePeek.app
+rm -rf ~/Applications/SpacePeek.app
 
-# 3. Drag the new SpacePeek.app from the freshly downloaded DMG into /Applications
-#    (Finder), then strip quarantine on the new copy:
-xattr -dr com.apple.quarantine /Applications/SpacePeek.app
+# Remove preferences, saved state, caches
+defaults delete com.zeyadamer.spacepeek 2>/dev/null
+rm -f  ~/Library/Preferences/com.zeyadamer.spacepeek.plist
+rm -rf ~/Library/Saved\ Application\ State/com.zeyadamer.spacepeek.savedState
+rm -rf ~/Library/Caches/com.zeyadamer.spacepeek
+rm -rf ~/Library/HTTPStorages/com.zeyadamer.spacepeek
+rm -rf ~/Library/WebKit/com.zeyadamer.spacepeek
+rm -rf ~/Library/Containers/com.zeyadamer.spacepeek
 
-# 4. Wipe the stale Accessibility entry so the new code hash gets a clean prompt
-tccutil reset Accessibility com.zeyadamer.spacepeek
+# Remove custom fonts and Application Support data
+rm -rf ~/Library/Application\ Support/SpacePeek
 
-# 5. Launch
-open /Applications/SpacePeek.app
+# Reset Accessibility (and any other) TCC permissions
+tccutil reset All com.zeyadamer.spacepeek
+
+# Force preferences daemon to reload
+killall cfprefsd 2>/dev/null
+
+echo "SpacePeek fully wiped."
 ```
 
-After launch:
-
-1. Settings → Privacy & Security → Accessibility.
-2. Click **+** → ⌘⇧G → paste `/Applications/SpacePeek.app` → Open.
-3. Toggle the new **SpacePeek** row on.
-
-If the row is already there but does nothing, click **−** to remove it first, then re-add. The `tccutil reset` step above usually clears it for you.
+After running, **System Settings → Privacy & Security → Accessibility** no longer lists SpacePeek. A fresh install behaves like first-ever launch.
 
 ## Settings
 
@@ -147,21 +138,35 @@ swift run SpacePeek
 
 ### Cut a release
 
+Signed + notarized release requires a paid Apple Developer Program account, a `Developer ID Application` certificate, and a stored notary credential profile.
+
 ```bash
-# 1. build the DMG
+# One-time setup (per machine)
+xcrun notarytool store-credentials notary-spacepeek \
+  --apple-id you@example.com \
+  --team-id YOURTEAMID \
+  --password xxxx-xxxx-xxxx-xxxx       # app-specific password from appleid.apple.com
+
+# Per release
+export DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (YOURTEAMID)"
+export NOTARY_PROFILE="notary-spacepeek"
+
 bash scripts/build-app.sh
+# → dist/SpacePeek.app + dist/SpacePeek-x.y.z.dmg + .zip, all signed, notarized, stapled
 
-# 2. tag the commit
-git tag v0.2.0
-git push origin v0.2.0
+git tag v1.0.0
+git push origin v1.0.0
 
-# 3. publish on GitHub Releases with the DMG attached
-gh release create v0.2.0 dist/SpacePeek-0.2.0.dmg \
-  --title "SpacePeek 0.2.0" \
-  --notes $'Settings window, per-space renames, App Rules, custom font import. Drag the DMG to Applications, then strip quarantine to bypass Gatekeeper:\n\n    xattr -dr com.apple.quarantine /Applications/SpacePeek.app\n\nOr System Settings → Privacy & Security → Open Anyway. Then grant Accessibility access.'
+gh release create v1.0.0 \
+  dist/SpacePeek-1.0.0.dmg \
+  dist/SpacePeek-1.0.0.zip \
+  --title "SpacePeek 1.0.0" \
+  --notes-file RELEASE_NOTES.md
 ```
 
-Bump version in `scripts/build-app.sh` and the DMG filename for subsequent releases.
+If `DEVELOPER_ID_APPLICATION` is unset, the script falls back to ad-hoc signing (local dev only — Gatekeeper will reject those builds on other machines).
+
+Bump version in both `scripts/build-app.sh` and `Resources/Info.plist` (`CFBundleShortVersionString` + `CFBundleVersion`) for subsequent releases.
 
 ## How it works
 
@@ -193,14 +198,14 @@ Resources/
   Info.plist                     Bundle metadata, LSUIElement true
   AppIcon.icns                   Generated by scripts/make-icon.swift
 scripts/
-  build-app.sh                   Release build → .app → ad-hoc sign → .dmg
+  build-app.sh                   Release build → .app → Developer ID sign → notarize → staple → .dmg + .zip
   make-icon.swift                Renders icon set + runs iconutil
 ```
 
 ## Roadmap
 
+- [x] Developer-ID signed + notarized release
 - [ ] Universal binary (arm64 + x86_64)
-- [ ] Developer-ID signed + notarized release
 - [ ] Launch at login (`SMAppService`)
 - [ ] Optional dark / light label themes
 - [ ] Per-app font overrides
