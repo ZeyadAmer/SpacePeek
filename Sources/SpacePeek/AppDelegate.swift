@@ -4,18 +4,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var watcher: MissionControlWatcher?
     private var overlayController: LabelOverlayController?
+    private var accessibilityPollTimer: Timer?
+    private var accessibilityAlertOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = FontImporter.shared
         installStatusItem()
-        ensureAccessibility { [weak self] granted in
-            guard let self else { return }
-            guard granted else {
-                self.presentAccessibilityAlert()
-                return
-            }
-            self.startWatching()
-        }
+        evaluateAccessibility(promptIfMissing: true)
 
         NotificationCenter.default.addObserver(
             self,
@@ -48,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startWatching() {
+        guard watcher == nil else { return }
         let controller = LabelOverlayController()
         overlayController = controller
 
@@ -74,13 +70,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.watcher = watcher
     }
 
-    private func presentAccessibilityAlert() {
+    /// Single entry point for permission state. If granted, start watching and stop polling.
+    /// If not granted, show one alert at most and poll silently until the user grants access.
+    private func evaluateAccessibility(promptIfMissing: Bool) {
+        if isAccessibilityTrusted(prompt: false) {
+            stopAccessibilityPolling()
+            startWatching()
+            return
+        }
+        // Trigger the macOS system prompt only once per launch attempt.
+        if promptIfMissing {
+            _ = isAccessibilityTrusted(prompt: true)
+        }
+        presentAccessibilityAlertIfNeeded()
+        startAccessibilityPolling()
+    }
+
+    private func startAccessibilityPolling() {
+        guard accessibilityPollTimer == nil else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            if isAccessibilityTrusted(prompt: false) {
+                self.stopAccessibilityPolling()
+                self.startWatching()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        accessibilityPollTimer = timer
+    }
+
+    private func stopAccessibilityPolling() {
+        accessibilityPollTimer?.invalidate()
+        accessibilityPollTimer = nil
+    }
+
+    private func presentAccessibilityAlertIfNeeded() {
+        guard !accessibilityAlertOpen else { return }
+        accessibilityAlertOpen = true
         let alert = NSAlert()
         alert.messageText = "Accessibility permission required"
-        alert.informativeText = "Grant SpacePeek access under System Settings > Privacy & Security > Accessibility, then choose Recheck Permissions from the menu bar item."
+        alert.informativeText = "Grant SpacePeek access under System Settings > Privacy & Security > Accessibility. SpacePeek will start watching automatically once access is granted."
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "Later")
-        if alert.runModal() == .alertFirstButtonReturn {
+        let response = alert.runModal()
+        accessibilityAlertOpen = false
+        if response == .alertFirstButtonReturn {
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
@@ -99,14 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func recheckPermissions() {
-        ensureAccessibility { [weak self] granted in
-            guard let self else { return }
-            if granted {
-                self.startWatching()
-            } else {
-                self.presentAccessibilityAlert()
-            }
-        }
+        evaluateAccessibility(promptIfMissing: false)
     }
 
     @objc private func forceScan() {
