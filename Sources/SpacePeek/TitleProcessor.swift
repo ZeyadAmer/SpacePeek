@@ -5,30 +5,33 @@ enum TitleProcessor {
 
     private static let separators: [String] = [" — ", " – ", " - ", " | "]
 
-    static func displayTitle(forRawTitle raw: String, preferences: Preferences) -> String {
-        let base = baseTitle(forRawTitle: raw, preferences: preferences)
+    static func displayTitle(forRawTitle raw: String, appName: String? = nil, preferences: Preferences) -> String {
+        let base = baseTitle(forRawTitle: raw, appName: appName, preferences: preferences)
         if let override = preferences.spaceOverrides[base], let custom = override.customName, !custom.isEmpty {
             return truncate(custom)
         }
         return truncate(base)
     }
 
-    static func baseTitle(forRawTitle raw: String, preferences: Preferences) -> String {
-        let strategy = resolveStrategy(forRawTitle: raw, preferences: preferences)
-        return apply(strategy: strategy, to: raw)
+    static func baseTitle(forRawTitle raw: String, appName: String? = nil, preferences: Preferences) -> String {
+        let strategy = resolveStrategy(forRawTitle: raw, appName: appName, preferences: preferences)
+        return apply(strategy: strategy, to: raw, appName: appName)
     }
 
-    static func resolveStrategy(forRawTitle raw: String, preferences: Preferences) -> TitleStrategy {
-        let lower = raw.lowercased()
+    /// A rule matches on the window title *or* the owning app's name, so a rule for "Warp" still
+    /// applies to a Warp window titled after the project it has open.
+    static func resolveStrategy(forRawTitle raw: String, appName: String? = nil, preferences: Preferences) -> TitleStrategy {
+        let haystacks = [raw.lowercased(), appName?.lowercased()].compactMap { $0 }
         for rule in preferences.appRules where !rule.appName.isEmpty {
-            if lower.contains(rule.appName.lowercased()) {
+            let needle = rule.appName.lowercased()
+            if haystacks.contains(where: { $0.contains(needle) }) {
                 return rule.strategy
             }
         }
         return preferences.defaultStrategy
     }
 
-    static func apply(strategy: TitleStrategy, to raw: String) -> String {
+    static func apply(strategy: TitleStrategy, to raw: String, appName: String? = nil) -> String {
         switch strategy {
         case .raw:
             return raw
@@ -38,6 +41,8 @@ enum TitleProcessor {
             return lastSegment(of: raw)
         case .appProfile:
             return profileSegment(of: raw)
+        case .appName:
+            return appName ?? raw
         }
     }
 

@@ -9,9 +9,8 @@ final class MissionControlWatcher {
     private var pollTimer: Timer?
     private var refreshTimer: Timer?
     private var isVisible = false
-    private let overlayCountMax = 11
-    private let fastPollInterval: TimeInterval = 0.125
-    private let normalShowDelay: TimeInterval = 0.375
+    private let fastPollInterval: TimeInterval = 0.06
+    private let refreshInterval: TimeInterval = 0.25
 
     init(
         onShow: @escaping ([Thumbnail]) -> Void,
@@ -62,18 +61,11 @@ final class MissionControlWatcher {
         let thumbnails = ThumbnailScanner.scan()
         let nowVisible = !thumbnails.isEmpty
         if nowVisible && !isVisible {
+            // No settling delay: the scanner only returns tiles once their geometry is trustworthy,
+            // so anything it hands back can be drawn immediately.
             isVisible = true
-            let isOverlayMode = thumbnails.count < overlayCountMax
-            if isOverlayMode {
-                onShow(thumbnails)
-                startRefreshLoop()
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + normalShowDelay) { [weak self] in
-                    guard let self, self.isVisible else { return }
-                    self.onShow(thumbnails)
-                    self.startRefreshLoop()
-                }
-            }
+            onShow(thumbnails)
+            startRefreshLoop()
         } else if !nowVisible && isVisible {
             isVisible = false
             stopRefreshLoop()
@@ -83,7 +75,7 @@ final class MissionControlWatcher {
 
     private func startRefreshLoop() {
         refreshTimer?.invalidate()
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             guard let self, self.isVisible else { return }
             if self.shouldPauseRefresh() { return }
             let thumbnails = ThumbnailScanner.scan()

@@ -16,6 +16,9 @@ final class LabelOverlayController {
     private var pendingShowWork: DispatchWorkItem?
     private var mouseTimer: Timer?
     private var stripCoverWindow: NSWindow?
+    /// Label windows are expensive to build; recycle them across Mission Control sessions so the
+    /// first frame after opening does not pay for 16 window allocations.
+    private var recycledWindows: [NSWindow] = []
     private let stripCoverHeight: CGFloat = 36
     private let stripCoverPaddingX: CGFloat = 24
     private let compactTileHeightRatio: CGFloat = 0.06
@@ -51,6 +54,7 @@ final class LabelOverlayController {
         pendingShowWork = nil
         for entry in entries.values {
             entry.window.orderOut(nil)
+            recycledWindows.append(entry.window)
         }
         entries.removeAll()
         orderedIDs.removeAll()
@@ -67,6 +71,7 @@ final class LabelOverlayController {
         let incomingIDs = Set(thumbnails.map { $0.id })
         for (id, entry) in entries where !incomingIDs.contains(id) {
             entry.window.orderOut(nil)
+            recycledWindows.append(entry.window)
             entries.removeValue(forKey: id)
         }
         orderedIDs = thumbnails.map { $0.id }
@@ -98,7 +103,7 @@ final class LabelOverlayController {
                     title: thumbnail.title
                 )
             } else {
-                let window = makeWindow()
+                let window = recycledWindows.popLast() ?? makeWindow()
                 window.contentView = LabelView(title: thumbnail.title)
                 window.setFrame(labelFrame, display: false)
                 if !labelsHidden && !isCompactLayout {
@@ -114,6 +119,14 @@ final class LabelOverlayController {
         }
 
         stripBand = union.isNull ? .zero : union.insetBy(dx: -16, dy: -16)
+
+        if ProcessInfo.processInfo.environment["WL_DEBUG"] != nil {
+            let level = entries.values.first?.window.level.rawValue ?? 0
+            let visible = entries.values.filter { $0.window.isVisible }.count
+            ThumbnailScanner.logDiagnostic(
+                "[WL] overlay windows=\(entries.count) visible=\(visible) level=\(level) compact=\(isCompactLayout) cover=\(useCoverBand) band=\(NSStringFromRect(stripBand))\n"
+            )
+        }
 
         if union.isNull || !useCoverBand {
             stripCoverWindow?.orderOut(nil)
@@ -208,7 +221,9 @@ final class LabelOverlayController {
         window.ignoresMouseEvents = true
         let shielded = Int(CGShieldingWindowLevel())
         window.level = NSWindow.Level(rawValue: max(shielded + 10, Int(CGWindowLevelForKey(.maximumWindow))))
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .transient]
+        // No `.transient`: macOS 27 honours it as "hide while Mission Control is up" and drops the
+        // window from the compositing pass entirely. `.stationary` is required for the same reason.
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
         return window
@@ -227,7 +242,9 @@ final class LabelOverlayController {
         window.ignoresMouseEvents = true
         let shielded = Int(CGShieldingWindowLevel())
         window.level = NSWindow.Level(rawValue: shielded + 9)
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .transient]
+        // No `.transient`: macOS 27 honours it as "hide while Mission Control is up" and drops the
+        // window from the compositing pass entirely. `.stationary` is required for the same reason.
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
 

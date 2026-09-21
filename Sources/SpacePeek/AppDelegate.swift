@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = FontImporter.shared
         installStatusItem()
         evaluateAccessibility(promptIfMissing: true)
+        startAccessibilityDumpIfRequested()
 
         NotificationCenter.default.addObserver(
             self,
@@ -138,6 +139,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func forceScan() {
         watcher?.scanOnce()
+    }
+
+    /// Diagnostic aid for macOS upgrades: SPACEPEEK_AXDUMP=1 prints the Mission Control
+    /// accessibility tree every 2s so a moved/renamed element can be located quickly.
+    private func startAccessibilityDumpIfRequested() {
+        guard ProcessInfo.processInfo.environment["SPACEPEEK_AXDUMP"] != nil else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            ThumbnailScanner.dumpAccessibilityTree()
+            ThumbnailScanner.dumpWindowLayers()
+        }
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     @objc private func quit() {

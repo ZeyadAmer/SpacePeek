@@ -4,6 +4,7 @@ import Combine
 struct SpaceSnapshot: Identifiable, Equatable, Codable {
     let id: String           // base key (post-strategy, pre-rename)
     let rawTitle: String
+    var appName: String?
 }
 
 final class SpacesSnapshotStore: ObservableObject {
@@ -19,8 +20,8 @@ final class SpacesSnapshotStore: ObservableObject {
     func update(from thumbnails: [Thumbnail]) {
         let prefs = PreferencesStore.shared.preferences
         let items = thumbnails.map { thumb -> SpaceSnapshot in
-            let base = TitleProcessor.baseTitle(forRawTitle: thumb.rawTitle, preferences: prefs)
-            return SpaceSnapshot(id: base, rawTitle: thumb.rawTitle)
+            let base = TitleProcessor.baseTitle(forRawTitle: thumb.rawTitle, appName: thumb.appName, preferences: prefs)
+            return SpaceSnapshot(id: base, rawTitle: thumb.rawTitle, appName: thumb.appName)
         }
         var seen = Set<String>()
         let unique = items.filter { seen.insert($0.id).inserted }

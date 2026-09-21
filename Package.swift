@@ -10,6 +10,11 @@ let package = Package(
         .executableTarget(
             name: "SpacePeek",
             path: "Sources/SpacePeek"
+        ),
+        .testTarget(
+            name: "SpacePeekTests",
+            dependencies: ["SpacePeek"],
+            path: "Tests/SpacePeekTests"
         )
     ]
 )

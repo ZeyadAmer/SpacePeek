@@ -218,7 +218,7 @@ private struct PerSpaceRow: View {
                 Text(snapshot.id)
                     .font(.headline)
                 Spacer()
-                Text("Preview: \(TitleProcessor.displayTitle(forRawTitle: snapshot.rawTitle, preferences: preferences))")
+                Text("Preview: \(TitleProcessor.displayTitle(forRawTitle: snapshot.rawTitle, appName: snapshot.appName, preferences: preferences))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -241,7 +241,7 @@ private struct AppRulesTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Apply a strategy when a space title contains the given app name (case-insensitive). Rules are checked top to bottom; first match wins.")
+            Text("Apply a strategy when a space title — or its owning app — matches the given name (case-insensitive). Pick \"App name\" to label the space with the app itself, which is what you want for windows titled after a project rather than the app. Rules are checked top to bottom; first match wins.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal)

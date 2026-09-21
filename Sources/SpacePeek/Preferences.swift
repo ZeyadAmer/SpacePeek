@@ -6,6 +6,7 @@ enum TitleStrategy: String, Codable, CaseIterable, Identifiable {
     case folder
     case fileName
     case appProfile
+    case appName
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum TitleStrategy: String, Codable, CaseIterable, Identifiable {
         case .folder: return "Folder name"
         case .fileName: return "File name"
         case .appProfile: return "App profile"
+        case .appName: return "App name"
         }
     }
 }
