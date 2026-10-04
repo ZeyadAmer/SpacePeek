@@ -24,7 +24,7 @@ Mission Control's Spaces strip only shows a space's name when you hover it. With
 
 ## Install
 
-Signed with an Apple Developer ID certificate. Release 2.0.0 is **not** notarized, so Gatekeeper
+Signed with an Apple Developer ID certificate. Release 2.0.1 is **not** notarized, so Gatekeeper
 shows a "cannot verify the developer" prompt on first launch. On macOS 15 and later the Control-click → Open
 bypass is gone — approve it under System Settings → Privacy & Security → **Open Anyway**, or strip the
 quarantine flag before launching:

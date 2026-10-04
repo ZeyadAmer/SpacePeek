@@ -225,23 +225,25 @@ enum ThumbnailScanner {
         return Thumbnail(id: id, frame: frame, rawTitle: rawTitle, title: displayTitle, appName: appName)
     }
 
-    private static func dedupeByRawTitle(_ thumbs: [Thumbnail]) -> [Thumbnail] {
-        var bestByTitle: [String: Thumbnail] = [:]
-        var order: [String] = []
+    /// Compact layouts can report the same tile twice at different sizes; keep the larger copy.
+    /// Distinct spaces may share a title (two windows of one project), so a duplicate must also
+    /// overlap horizontally — otherwise both are real tiles and both get a label.
+    static func dedupeByRawTitle(_ thumbs: [Thumbnail]) -> [Thumbnail] {
+        var kept: [Thumbnail] = []
         for thumb in thumbs {
-            let key = thumb.rawTitle
-            if let existing = bestByTitle[key] {
-                let existingArea = existing.frame.width * existing.frame.height
-                let newArea = thumb.frame.width * thumb.frame.height
-                if newArea > existingArea {
-                    bestByTitle[key] = thumb
-                }
-            } else {
-                bestByTitle[key] = thumb
-                order.append(key)
+            guard let i = kept.firstIndex(where: {
+                $0.rawTitle == thumb.rawTitle
+                    && $0.frame.minX < thumb.frame.maxX && thumb.frame.minX < $0.frame.maxX
+            }) else {
+                kept.append(thumb)
+                continue
+            }
+            let existing = kept[i]
+            if thumb.frame.width * thumb.frame.height > existing.frame.width * existing.frame.height {
+                kept[i] = thumb
             }
         }
-        return order.compactMap { bestByTitle[$0] }
+        return kept
     }
 
     private static func pickTitle(rawTitle: String, rawDesc: String) -> String {

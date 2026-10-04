@@ -23,6 +23,10 @@ final class LabelOverlayController {
     private let stripCoverPaddingX: CGFloat = 24
     private let compactTileHeightRatio: CGFloat = 0.06
     private let coverBandMaxSpaces = 11
+    /// macOS 27 tile windows end below the space name Apple draws under each thumbnail; this is the
+    /// share of the tile height that name occupies (measured: bottom ~23pt of a 129pt tile).
+    private let appleNameAreaRatio: CGFloat = 0.2
+    private static let tilesIncludeNameArea = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27
     private var isCompactLayout = false
     private var useCoverBand = false
     var onStripLeave: (() -> Void)?
@@ -81,10 +85,14 @@ final class LabelOverlayController {
         let withinNewLogic = thumbnails.count < coverBandMaxSpaces
         isCompactLayout = withinNewLogic && maxTileHeight > 0 && maxTileHeight < screenHeight * compactTileHeightRatio
         useCoverBand = withinNewLogic && !isCompactLayout
+        let nameArea = useCoverBand && Self.tilesIncludeNameArea ? maxTileHeight * appleNameAreaRatio : 0
 
         var union: NSRect = .null
         for thumbnail in thumbnails {
-            let tileScreenFrame = convertToScreenCoords(thumbnail.frame)
+            var tileScreenFrame = convertToScreenCoords(thumbnail.frame)
+            // Measure from the thumbnail image, not the tile window, so the cover lands on Apple's name.
+            tileScreenFrame.origin.y += nameArea
+            tileScreenFrame.size.height -= nameArea
             union = union.isNull ? tileScreenFrame : union.union(tileScreenFrame)
             let labelFrame = labelRect(for: tileScreenFrame, title: thumbnail.title, existing: entries[thumbnail.id])
 
@@ -208,6 +216,10 @@ final class LabelOverlayController {
         return NSRect(x: originX, y: originY, width: labelWidth, height: labelHeight)
     }
 
+    private let overlayLevel = NSWindow.Level(
+        rawValue: max(Int(CGShieldingWindowLevel()) + 10, Int(CGWindowLevelForKey(.maximumWindow)))
+    )
+
     private func makeWindow() -> NSWindow {
         let window = NSWindow(
             contentRect: .zero,
@@ -219,8 +231,7 @@ final class LabelOverlayController {
         window.backgroundColor = .clear
         window.hasShadow = false
         window.ignoresMouseEvents = true
-        let shielded = Int(CGShieldingWindowLevel())
-        window.level = NSWindow.Level(rawValue: max(shielded + 10, Int(CGWindowLevelForKey(.maximumWindow))))
+        window.level = overlayLevel
         // No `.transient`: macOS 27 honours it as "hide while Mission Control is up" and drops the
         // window from the compositing pass entirely. `.stationary` is required for the same reason.
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
@@ -240,8 +251,10 @@ final class LabelOverlayController {
         window.backgroundColor = .clear
         window.hasShadow = false
         window.ignoresMouseEvents = true
-        let shielded = Int(CGShieldingWindowLevel())
-        window.level = NSWindow.Level(rawValue: shielded + 9)
+        // Same level as the labels: macOS 27 draws its own tile names between `shielded + 9` and the
+        // label level, so a lower cover left Apple's names showing above it, doubling every label.
+        // Labels are ordered front after the cover, so they still sit on top of it.
+        window.level = overlayLevel
         // No `.transient`: macOS 27 honours it as "hide while Mission Control is up" and drops the
         // window from the compositing pass entirely. `.stationary` is required for the same reason.
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
